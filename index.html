@@ -368,17 +368,36 @@
                     const monthName = new Date(yearMonth + '-02').toLocaleString('default', { month: 'long' });
                     const year = yearMonth.split('-')[0];
                     const folderHTML = `
-                        <div class="month-folder card-style p-6 rounded-xl text-center cursor-pointer transform hover:scale-105 transition-transform duration-300" data-year-month="${yearMonth}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-3"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                            <h3 class="text-xl font-bold text-amber-900">${monthName} ${year}</h3>
-                            <p class="text-gray-600">Spent: ${formatCurrency(totalSpent)}</p>
+                        <div class="month-folder card-style rounded-xl text-center transition-transform duration-300 flex flex-col" data-year-month="${yearMonth}">
+                            <div class="p-6 cursor-pointer transform hover:scale-105 flex-grow">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-3"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                                <h3 class="text-xl font-bold text-amber-900">${monthName} ${year}</h3>
+                                <p class="text-gray-600">Spent: ${formatCurrency(totalSpent)}</p>
+                            </div>
+                            <div class="border-t border-gray-200 p-2">
+                                <button class="delete-month-btn w-full text-red-600 hover:bg-red-50 rounded-md p-1 text-sm font-semibold transition-colors">
+                                    Delete Month
+                                </button>
+                            </div>
                         </div>`;
                     monthFoldersList.insertAdjacentHTML('beforeend', folderHTML);
+                });
+            }
+            
+            function deleteMonthData(yearMonth) {
+                const monthName = new Date(yearMonth + '-02').toLocaleString('default', { month: 'long', year: 'numeric' });
+                showConfirmationModal(`Are you sure? This will permanently delete all data for ${monthName}.`, () => {
+                    localStorage.removeItem(getBudgetKey(yearMonth));
+                    localStorage.removeItem(getExpensesKey(yearMonth));
+                    localStorage.removeItem(getNotesKey(yearMonth));
+                    renderMonthFolders();
+                    showNotification(`All data for ${monthName} has been deleted.`, 'success');
                 });
             }
 
             // --- Chart Functions ---
             function initializeChart() {
+                if (expenseChart) expenseChart.destroy();
                 const ctx = chartCanvas.getContext('2d');
                 expenseChart = new Chart(ctx, {
                     type: 'doughnut',
@@ -432,9 +451,9 @@
                                     <p class="text-sm text-gray-500">${getRelativeDueDate(expense.dueDate)}</p>
                                 </div>
                             </div>
-                            <div class="text-right ml-2">
+                            <div class="text-right ml-2 flex-shrink-0">
                                 <p class="font-bold text-amber-900">${formatCurrency(expense.amount)}</p>
-                                <button onclick="markExpenseAsPaid('${expense.id}')" class="mt-2 p-2 bg-green-600 hover:bg-green-700 text-white rounded-full transition-colors flex-shrink-0" title="Mark as Paid">
+                                <button onclick="markExpenseAsPaid('${expense.id}')" class="mt-2 p-2 bg-green-600 hover:bg-green-700 text-white rounded-full transition-colors" title="Mark as Paid">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none"><path d="M20 6 9 17l-5-5"/></svg>
                                 </button>
                             </div>
@@ -453,9 +472,9 @@
                                     <p class="text-sm text-green-600">Paid on ${new Date(expense.paidDate).toLocaleDateString()}</p>
                                 </div>
                             </div>
-                             <div class="text-right ml-2">
+                             <div class="text-right ml-2 flex-shrink-0">
                                 <p class="font-bold text-green-700">${formatCurrency(expense.amount)}</p>
-                                <button onclick="deleteExpense('${expense.id}')" class="mt-2 p-2 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors flex-shrink-0" title="Delete Expense">
+                                <button onclick="deleteExpense('${expense.id}')" class="mt-2 p-2 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors" title="Delete Expense">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6"></path></svg>
                                 </button>
                             </div>
@@ -540,15 +559,19 @@
                 });
                 
                 monthFoldersList.addEventListener('click', (e) => {
-                    const folder = e.target.closest('.month-folder');
-                    if (!folder) return;
-                    const yearMonth = folder.dataset.yearMonth;
-                    selectedYearMonth = yearMonth;
-                    monthSelector.value = yearMonth;
-                    monthsScreen.classList.add('hidden');
-                    appScreen.classList.remove('hidden');
-                    if (!expenseChart) initializeChart();
-                    loadMonthData(yearMonth);
+                    const folderCard = e.target.closest('.month-folder');
+                    if (!folderCard) return;
+                    const yearMonth = folderCard.dataset.yearMonth;
+                    if (e.target.closest('.delete-month-btn')) {
+                        deleteMonthData(yearMonth);
+                    } else {
+                        selectedYearMonth = yearMonth;
+                        monthSelector.value = yearMonth;
+                        monthsScreen.classList.add('hidden');
+                        appScreen.classList.remove('hidden');
+                        if (!expenseChart) initializeChart();
+                        loadMonthData(yearMonth);
+                    }
                 });
 
                 jumpToMonthForm.addEventListener('submit', function(e) {
@@ -579,7 +602,7 @@
                 budgetForm.addEventListener('submit', (e) => {
                     e.preventDefault();
                     const amount = parseFloat(budgetInput.value);
-                    if (amount >= 0) {
+                    if (!isNaN(amount) && amount >= 0) {
                         currentBudget = amount;
                         saveBudget(selectedYearMonth, amount);
                         updateBudgetDisplay();
@@ -600,6 +623,10 @@
                         paid: false,
                         createdAt: new Date().toISOString()
                     };
+                    if (!expense.name || isNaN(expense.amount) || expense.amount <= 0 || !expense.dueDate) {
+                        showNotification('Please fill all expense fields correctly.', 'error');
+                        return;
+                    }
                     currentExpenses.push(expense);
                     saveExpenses(selectedYearMonth, currentExpenses);
                     updateBudgetDisplay();
@@ -611,8 +638,13 @@
 
                 notesForm.addEventListener('submit', (e) => {
                     e.preventDefault();
-                    const note = { id: crypto.randomUUID(), text: noteInput.value.trim(), createdAt: new Date().toISOString() };
-                    currentNotes.push(note);
+                    const noteText = noteInput.value.trim();
+                    if (!noteText) {
+                        showNotification('Note cannot be empty.', 'error');
+                        return;
+                    }
+                    const note = { id: crypto.randomUUID(), text: noteText, createdAt: new Date().toISOString() };
+                    currentNotes.unshift(note);
                     saveNotes(selectedYearMonth, currentNotes);
                     updateNotesList();
                     noteInput.value = '';
