@@ -170,7 +170,7 @@
             <div class="card-style rounded-xl p-6">
                 <h3 class="text-2xl mb-4">Add New Expense</h3>
                 <form id="expense-form" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input type="text" id="expense-name" placeholder="Expense name" class="input-style sm:col-span-1" required>
+                    <input type="text" id="expense-name" placeholder="Expense name" class="input-style sm:col-span-2" required>
                     <input type="number" id="expense-amount" placeholder="Amount (₹)" class="input-style sm:col-span-1" required>
                     <select id="expense-category" class="input-style sm:col-span-1" required>
                         <option value="Shopping">Shopping</option>
@@ -184,7 +184,8 @@
                         <option value="Hangouts">Hangouts</option>
                         <option value="Other">Other</option>
                     </select>
-                    <input type="datetime-local" id="expense-due-date" class="input-style sm:col-span-1" required>
+                    <input type="date" id="expense-date" class="input-style sm:col-span-1" required>
+                    <input type="time" id="expense-time" class="input-style sm:col-span-1" required>
                     <button type="submit" class="sm:col-span-2 w-full bg-green-700 hover:bg-green-800 text-white btn-primary py-2 px-6">Save Expense</button>
                 </form>
             </div>
@@ -239,7 +240,8 @@
             const expenseNameInput = document.getElementById('expense-name');
             const expenseAmountInput = document.getElementById('expense-amount');
             const expenseCategorySelect = document.getElementById('expense-category');
-            const expenseDueDateInput = document.getElementById('expense-due-date');
+            const expenseDateInput = document.getElementById('expense-date');
+            const expenseTimeInput = document.getElementById('expense-time');
             const upcomingList = document.getElementById('upcoming-expenses-list');
             const paidList = document.getElementById('paid-expenses-list');
             const upcomingTitleEl = document.getElementById('upcoming-expenses-title');
@@ -282,7 +284,7 @@
                 setTimeout(() => {
                     if (notification.parentElement) {
                         notification.classList.add('translate-x-full', 'opacity-0');
-                        setTimeout(() => notification.remove(), 300);
+                        setTimeout(() => notification.remove(), 5000);
                     }
                 }, 5000);
             }
@@ -622,17 +624,21 @@
                 expenseForm.addEventListener('submit', (e) => {
                     e.preventDefault();
                     try {
+                        const dateValue = expenseDateInput.value;
+                        const timeValue = expenseTimeInput.value;
+                        const combinedDateTime = `${dateValue}T${timeValue}`;
+
                         const expense = {
                             id: crypto.randomUUID(),
                             name: expenseNameInput.value.trim(),
                             amount: parseFloat(expenseAmountInput.value),
                             category: expenseCategorySelect.value,
-                            dueDate: expenseDueDateInput.value,
+                            dueDate: combinedDateTime,
                             paid: false,
                             createdAt: new Date().toISOString()
                         };
 
-                        if (!expense.name || isNaN(expense.amount) || expense.amount <= 0 || !expense.dueDate) {
+                        if (!expense.name || isNaN(expense.amount) || expense.amount <= 0 || !dateValue || !timeValue) {
                             showNotification('Please fill all expense fields correctly.', 'error');
                             return;
                         }
@@ -651,7 +657,6 @@
                             let otherMonthExpenses = loadExpenses(expenseYearMonth);
                             otherMonthExpenses.push(expense);
                             saveExpenses(expenseYearMonth, otherMonthExpenses);
-                            // Provide clear feedback that the expense was saved to a different month
                             showNotification(`Expense "${expense.name}" saved to ${monthName}`, 'success');
                         }
                         
