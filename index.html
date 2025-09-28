@@ -91,7 +91,7 @@
                 <h1 class="text-4xl md:text-5xl tracking-wider">Track Expenses</h1>
                 <p class="text-lg text-amber-800/90 subtitle italic font-semibold mt-1">Don't just pay, Track It.</p>
             </div>
-            <p class="text-lg text-gray-600 max-w-md mx-auto subtitle font-medium">Take control of your finances. Tracking is now enabled for all users automatically.</p>
+            <p class="text-lg text-gray-600 max-w-md mx-auto subtitle font-medium">Take control of your finances. All your data is saved securely and privately on this device.</p>
             <button id="start-tracking-btn" class="bg-amber-800 hover:bg-amber-900 text-white btn-primary w-full">
                 Start Tracking My Expenses
             </button>
@@ -101,7 +101,11 @@
     <div id="months-screen" class="hidden max-w-4xl mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
             <h1 class="text-4xl tracking-wider">My Expense Months</h1>
-            <p class="text-lg text-gray-600 mt-2 subtitle">Select a month to view its details.</p>
+            <p class="text-lg text-gray-600 mt-2 subtitle">Select a folder or jump to any month to add expenses.</p>
+            <form id="jump-to-month-form" class="mt-6 max-w-sm mx-auto flex items-center gap-2">
+                <input type="month" class="input-style" required>
+                <button type="submit" class="bg-amber-800 hover:bg-amber-900 text-white btn-primary py-2 px-6 flex-shrink-0">Go</button>
+            </form>
         </header>
         <div id="month-folders-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             </div>
@@ -222,6 +226,7 @@
             const startTrackingBtn = document.getElementById('start-tracking-btn');
             const monthsScreen = document.getElementById('months-screen');
             const monthFoldersList = document.getElementById('month-folders-list');
+            const jumpToMonthForm = document.getElementById('jump-to-month-form');
             const appScreen = document.getElementById('app-screen');
             const backToMonthsBtn = document.getElementById('back-to-months-btn');
             const monthSelector = document.getElementById('month-selector');
@@ -307,14 +312,6 @@
                 return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount || 0);
             }
 
-            function setInitialMonth() {
-                const now = new Date();
-                const year = now.getFullYear();
-                const month = (now.getMonth() + 1).toString().padStart(2, '0');
-                selectedYearMonth = `${year}-${month}`;
-                monthSelector.value = selectedYearMonth;
-            }
-
             function getRelativeDueDate(dueDateString) {
                 const now = new Date();
                 const dueDate = new Date(dueDateString);
@@ -357,12 +354,14 @@
             }
 
             function renderMonthFolders() {
+                document.querySelectorAll('.month-folder').forEach(folder => folder.remove());
+                document.getElementById('no-months-msg')?.remove();
+                
                 const allMonths = getAllMonthsWithData();
-                monthFoldersList.innerHTML = '';
                 if (allMonths.length === 0) {
-                    monthFoldersList.innerHTML = `<p class="text-gray-500 text-center col-span-full">No expenses saved yet. Add an expense to create your first month folder.</p>`;
-                    return;
+                     monthFoldersList.insertAdjacentHTML('afterend', '<p id="no-months-msg" class="text-gray-500 text-center col-span-full">No expenses saved yet. Use the selector above to start.</p>');
                 }
+
                 allMonths.forEach(yearMonth => {
                     const expenses = loadExpenses(yearMonth);
                     const totalSpent = expenses.filter(exp => exp.paid).reduce((sum, exp) => sum + exp.amount, 0);
@@ -417,14 +416,13 @@
                 remainingBudgetEl.className = 'text-4xl font-bold ' + (remaining < 0 ? 'text-red-600' : remaining < currentBudget * 0.2 ? 'text-yellow-600' : 'text-green-600');
             }
             
-            // CORRECTED FUNCTION TO FIX DATE BUG
             function updateExpenseLists() {
                 const paid = currentExpenses.filter(expense => expense.paid).sort((a, b) => new Date(b.paidDate) - new Date(a.paidDate));
-                const upcoming = currentExpenses.filter(expense => !expense.paid).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-                if (upcoming.length === 0) {
+                const unpaid = currentExpenses.filter(expense => !expense.paid).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+                if (unpaid.length === 0) {
                     upcomingList.innerHTML = '<p class="text-gray-500 text-center py-4 subtitle">No unpaid expenses.</p>';
                 } else {
-                    upcomingList.innerHTML = upcoming.map(expense => `
+                    upcomingList.innerHTML = unpaid.map(expense => `
                         <div class="flex items-start justify-between p-4 bg-gray-50 rounded-lg border-l-4 border-amber-500">
                             <div class="flex items-start gap-3 flex-grow">
                                 <div class="flex-shrink-0">${categoryIcons[expense.category] || categoryIcons.Other}</div>
@@ -463,7 +461,7 @@
                             </div>
                         </div>`).join('');
                 }
-                upcomingTitleEl.textContent = `Unpaid Expenses (${upcoming.length})`;
+                upcomingTitleEl.textContent = `Unpaid Expenses (${unpaid.length})`;
                 paidTitleEl.textContent = `Paid Expenses History (${paid.length})`;
             }
 
@@ -551,6 +549,20 @@
                     appScreen.classList.remove('hidden');
                     if (!expenseChart) initializeChart();
                     loadMonthData(yearMonth);
+                });
+
+                jumpToMonthForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const monthInput = this.querySelector('input[type="month"]');
+                    const yearMonth = monthInput.value;
+                    if (yearMonth) {
+                        selectedYearMonth = yearMonth;
+                        monthSelector.value = yearMonth;
+                        monthsScreen.classList.add('hidden');
+                        appScreen.classList.remove('hidden');
+                        if (!expenseChart) initializeChart();
+                        loadMonthData(yearMonth);
+                    }
                 });
 
                 backToMonthsBtn.addEventListener('click', () => {
