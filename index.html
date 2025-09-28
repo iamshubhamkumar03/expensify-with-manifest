@@ -601,61 +601,73 @@
 
                 budgetForm.addEventListener('submit', (e) => {
                     e.preventDefault();
-                    const amount = parseFloat(budgetInput.value);
-                    if (!isNaN(amount) && amount >= 0) {
-                        currentBudget = amount;
-                        saveBudget(selectedYearMonth, amount);
-                        updateBudgetDisplay();
-                        showNotification(`Budget set to ${formatCurrency(amount)}`, 'success');
-                    } else {
-                        showNotification('Budget must be a positive number.', 'error');
+                    try {
+                        const amount = parseFloat(budgetInput.value);
+                        if (!isNaN(amount) && amount >= 0) {
+                            currentBudget = amount;
+                            saveBudget(selectedYearMonth, amount);
+                            updateBudgetDisplay();
+                            showNotification(`Budget set to ${formatCurrency(amount)}`, 'success');
+                        } else {
+                            showNotification('Budget must be a positive number.', 'error');
+                        }
+                    } catch (error) {
+                        showNotification(`Error setting budget: ${error.message}`, 'error');
                     }
                 });
 
                 expenseForm.addEventListener('submit', (e) => {
                     e.preventDefault();
-                    const expense = {
-                        id: crypto.randomUUID(),
-                        name: expenseNameInput.value.trim(),
-                        amount: parseFloat(expenseAmountInput.value),
-                        category: expenseCategorySelect.value,
-                        dueDate: expenseDueDateInput.value,
-                        paid: false,
-                        createdAt: new Date().toISOString()
-                    };
-                    if (!expense.name || isNaN(expense.amount) || expense.amount <= 0 || !expense.dueDate) {
-                        showNotification('Please fill all expense fields correctly.', 'error');
-                        return;
+                    try {
+                        const expense = {
+                            id: crypto.randomUUID(),
+                            name: expenseNameInput.value.trim(),
+                            amount: parseFloat(expenseAmountInput.value),
+                            category: expenseCategorySelect.value,
+                            dueDate: expenseDueDateInput.value,
+                            paid: false,
+                            createdAt: new Date().toISOString()
+                        };
+                        if (!expense.name || isNaN(expense.amount) || expense.amount <= 0 || !expense.dueDate) {
+                            showNotification('Please fill all expense fields correctly.', 'error');
+                            return;
+                        }
+                        const expenseYearMonth = expense.dueDate.slice(0, 7);
+                        if (expenseYearMonth === selectedYearMonth) {
+                            currentExpenses.push(expense);
+                            saveExpenses(selectedYearMonth, currentExpenses);
+                            updateBudgetDisplay();
+                            updateExpenseLists();
+                            updateChart(currentExpenses);
+                        } else {
+                            let otherMonthExpenses = loadExpenses(expenseYearMonth);
+                            otherMonthExpenses.push(expense);
+                            saveExpenses(expenseYearMonth, otherMonthExpenses);
+                        }
+                        expenseForm.reset();
+                        showNotification(`Expense "${expense.name}" added successfully!`, 'success');
+                    } catch (error) {
+                        showNotification(`Error adding expense: ${error.message}`, 'error');
                     }
-                    const expenseYearMonth = expense.dueDate.slice(0, 7);
-                    if (expenseYearMonth === selectedYearMonth) {
-                        currentExpenses.push(expense);
-                        saveExpenses(selectedYearMonth, currentExpenses);
-                        updateBudgetDisplay();
-                        updateExpenseLists();
-                        updateChart(currentExpenses);
-                    } else {
-                        let otherMonthExpenses = loadExpenses(expenseYearMonth);
-                        otherMonthExpenses.push(expense);
-                        saveExpenses(expenseYearMonth, otherMonthExpenses);
-                    }
-                    expenseForm.reset();
-                    showNotification(`Expense "${expense.name}" added successfully!`, 'success');
                 });
 
                 notesForm.addEventListener('submit', (e) => {
                     e.preventDefault();
-                    const noteText = noteInput.value.trim();
-                    if (!noteText) {
-                        showNotification('Note cannot be empty.', 'error');
-                        return;
+                    try {
+                        const noteText = noteInput.value.trim();
+                        if (!noteText) {
+                            showNotification('Note cannot be empty.', 'error');
+                            return;
+                        }
+                        const note = { id: crypto.randomUUID(), text: noteText, createdAt: new Date().toISOString() };
+                        currentNotes.unshift(note);
+                        saveNotes(selectedYearMonth, currentNotes);
+                        updateNotesList();
+                        noteInput.value = '';
+                        showNotification('Note added!', 'success');
+                    } catch (error) {
+                        showNotification(`Error adding note: ${error.message}`, 'error');
                     }
-                    const note = { id: crypto.randomUUID(), text: noteText, createdAt: new Date().toISOString() };
-                    currentNotes.unshift(note);
-                    saveNotes(selectedYearMonth, currentNotes);
-                    updateNotesList();
-                    noteInput.value = '';
-                    showNotification('Note added!', 'success');
                 });
             });
 
