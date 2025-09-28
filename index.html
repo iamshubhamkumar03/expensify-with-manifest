@@ -184,8 +184,13 @@
                         <option value="Hangouts">Hangouts</option>
                         <option value="Other">Other</option>
                     </select>
+
                     <input type="date" id="expense-date" class="input-style sm:col-span-1" required>
-                    <input type="time" id="expense-time" class="input-style sm:col-span-1" required>
+                    <div class="sm:col-span-1 grid grid-cols-2 gap-2">
+                        <select id="expense-hour" class="input-style" required></select>
+                        <select id="expense-minute" class="input-style" required></select>
+                    </div>
+                    
                     <button type="submit" class="sm:col-span-2 w-full bg-green-700 hover:bg-green-800 text-white btn-primary py-2 px-6">Save Expense</button>
                 </form>
             </div>
@@ -241,7 +246,8 @@
             const expenseAmountInput = document.getElementById('expense-amount');
             const expenseCategorySelect = document.getElementById('expense-category');
             const expenseDateInput = document.getElementById('expense-date');
-            const expenseTimeInput = document.getElementById('expense-time');
+            const expenseHourInput = document.getElementById('expense-hour');
+            const expenseMinuteInput = document.getElementById('expense-minute');
             const upcomingList = document.getElementById('upcoming-expenses-list');
             const paidList = document.getElementById('paid-expenses-list');
             const upcomingTitleEl = document.getElementById('upcoming-expenses-title');
@@ -333,6 +339,20 @@
                 if (dayDiff > 1 && dayDiff <= 7) { return `Due in <span class="font-semibold text-cyan-600">${dayDiff} days</span> (${dueDate.toLocaleDateString([], { weekday: 'short' })})`; }
                 return `Due: ${dueDate.toLocaleDateString()} ${dueDate.toLocaleTimeString([], timeFormat)}`;
             }
+            
+            function populateTimeDropdowns() {
+                // Populate hours (00-23)
+                for (let i = 0; i < 24; i++) {
+                    const hour = i.toString().padStart(2, '0');
+                    const option = `<option value="${hour}">${hour}</option>`;
+                    expenseHourInput.insertAdjacentHTML('beforeend', option);
+                }
+                // Populate minutes (00, 15, 30, 45)
+                ['00', '15', '30', '45'].forEach(minute => {
+                    const option = `<option value="${minute}">${minute}</option>`;
+                    expenseMinuteInput.insertAdjacentHTML('beforeend', option);
+                });
+            }
 
             // --- LocalStorage Functions ---
             const getBudgetKey = (yearMonth) => `budget_${yearMonth}`;
@@ -406,7 +426,7 @@
                 const ctx = chartCanvas.getContext('2d');
                 expenseChart = new Chart(ctx, {
                     type: 'doughnut',
-                    data: { labels: [], datasets: [{ data: [], backgroundColor: ['#92400e', '#ea580c', '#eab308', '#65a30d', '#059669', '#0891b2', '#2563eb', '#7c3aed', '#c2410c', '#6b7280'], borderWidth: 0, hoverOffset: 10 }] },
+                    data: { labels: [], datasets: [{ data: [], backgroundColor: ['#92400e', '#ea580c', '#eab308', '#65a30d', '#059669', '#0891b2', '#2563eb', '#c2410c', '#6b7280'], borderWidth: 0, hoverOffset: 10 }] },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, font: { size: 12 } } } } }
                 });
             }
@@ -425,7 +445,7 @@
                 } else {
                     expenseChart.data.labels = categories;
                     expenseChart.data.datasets[0].data = amounts;
-                    expenseChart.data.datasets[0].backgroundColor = ['#92400e', '#ea580c', '#eab308', '#65a30d', '#059669', '#0891b2', '#2563eb', '#7c3aed', '#c2410c', '#6b7280'];
+                    expenseChart.data.datasets[0].backgroundColor = ['#92400e', '#ea580c', '#eab308', '#65a30d', '#059669', '#0891b2', '#2563eb', '#c2410c', '#6b7280'];
                 }
                 expenseChart.update();
             }
@@ -554,6 +574,7 @@
 
             // --- Event Listeners and Initialization ---
             document.addEventListener('DOMContentLoaded', function() {
+                populateTimeDropdowns(); // Populate time dropdowns on startup
                 setTimeout(() => loadingSpinner.classList.add('opacity-0', 'pointer-events-none'), 500);
 
                 startTrackingBtn.addEventListener('click', () => {
@@ -625,8 +646,9 @@
                     e.preventDefault();
                     try {
                         const dateValue = expenseDateInput.value;
-                        const timeValue = expenseTimeInput.value;
-                        const combinedDateTime = `${dateValue}T${timeValue}`;
+                        const hourValue = expenseHourInput.value;
+                        const minuteValue = expenseMinuteInput.value;
+                        const combinedDateTime = `${dateValue}T${hourValue}:${minuteValue}`;
 
                         const expense = {
                             id: crypto.randomUUID(),
@@ -638,7 +660,7 @@
                             createdAt: new Date().toISOString()
                         };
 
-                        if (!expense.name || isNaN(expense.amount) || expense.amount <= 0 || !dateValue || !timeValue) {
+                        if (!expense.name || isNaN(expense.amount) || expense.amount <= 0 || !dateValue || !hourValue || !minuteValue) {
                             showNotification('Please fill all expense fields correctly.', 'error');
                             return;
                         }
